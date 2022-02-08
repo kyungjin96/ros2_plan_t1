@@ -21,13 +21,15 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import  NavigateToPose
 
-
 from nav2_msgs.action._back_up import BackUp  # noqa: F401
+from nav2_msgs.action._compute_path_through_poses import ComputePathThroughPoses  # noqa: F401
 from nav2_msgs.action._compute_path_to_pose import ComputePathToPose  # noqa: F401
 from nav2_msgs.action._dummy_recovery import DummyRecovery  # noqa: F401
 from nav2_msgs.action._follow_path import FollowPath  # noqa: F401
 from nav2_msgs.action._follow_waypoints import FollowWaypoints  # noqa: F401
+from nav2_msgs.action._navigate_through_poses import NavigateThroughPoses  # noqa: F401
 from nav2_msgs.action._navigate_to_pose import NavigateToPose  # noqa: F401
+from nav2_msgs.action._smooth_path import SmoothPath  # noqa: F401
 from nav2_msgs.action._spin import Spin  # noqa: F401
 from nav2_msgs.action._wait import Wait  # noqa: F401
 
@@ -58,7 +60,7 @@ class BasicNavigator(Node):
 
         self.initial_pose_received = False
         self.nav_through_poses_client = ActionClient(self,
-                                                     FollowWaypoints,
+                                                     NavigateThroughPoses,
                                                      'navigate_through_poses')
         self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.model_pose_sub = self.create_subscription(PoseWithCovarianceStamped,
@@ -80,7 +82,7 @@ class BasicNavigator(Node):
         while not self.nav_through_poses_client.wait_for_server(timeout_sec=1.0):
             self.info("'NavigateToPose' action server not available, waiting...")
 
-        goal_msg = FollowWaypoints.Goal()
+        goal_msg = ComputePathThroughPoses.Goal()
         goal_msg.poses = poses
 
         self.info('Navigating with ' + str(len(poses)) + ' goals.' + '...')
@@ -220,6 +222,7 @@ class BasicNavigator(Node):
 
 import sys
 from geometry_msgs.msg import PoseStamped
+from rclpy.duration import Duration
   
 def main(argv=sys.argv[1:]):
     rclpy.init()
@@ -256,14 +259,14 @@ def main(argv=sys.argv[1:]):
         # Do something with the feedback
         i = i + 1
         feedback = navigator.getFeedback()
-        # if feedback and i % 5 == 0:
-        #     print('Estimated time of arrival: ' + '{0:.0f}'.format(
-        #           Duration.from_msg(feedback.estimated_time_remaining).nanoseconds / 1e9)
-        #           + ' seconds.')
+        if feedback and i % 5 == 0:
+            print('Estimated time of arrival: ' + '{0:.0f}'.format(
+                  Duration.from_msg(feedback.estimated_time_remaining).nanoseconds / 1e9)
+                  + ' seconds.')
 
-        #     # Some navigation timeout to demo cancellation
-        #     if Duration.from_msg(feedback.navigation_time) > Duration(seconds=600.0):
-        #         navigator.cancelNav()
+            # Some navigation timeout to demo cancellation
+            if Duration.from_msg(feedback.navigation_time) > Duration(seconds=600.0):
+                navigator.cancelNav()
 
     # Do something depending on the return code
     result = navigator.getResult()
